@@ -29,22 +29,43 @@ describe('PaymentsService', () => {
     expect(processor.process).toHaveBeenCalledWith(payment.id);
   });
 
-  it('allows only pending to cancelled', async () => {
+  it.each([
+    [PaymentStatus.PENDING, PaymentStatus.PROCESSING],
+    [PaymentStatus.PENDING, PaymentStatus.CANCELLED],
+    [PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED],
+    [PaymentStatus.PROCESSING, PaymentStatus.FAILED],
+  ])('allows %s to transition to %s', async (from, to) => {
     const payment = {
       id: 'pay_1',
       amount: 1,
       currency: Currency.CAD,
-      status: PaymentStatus.PENDING,
+      status: from,
       createdAt: '',
       updatedAt: '',
     };
     repository.findById.mockResolvedValue(payment);
-    const cancelled = await service.updateStatus(payment.id, { status: PaymentStatus.CANCELLED });
-    expect(cancelled.status).toBe(PaymentStatus.CANCELLED);
-    repository.findById.mockResolvedValue({ ...payment, status: PaymentStatus.SUCCEEDED });
-    await expect(service.updateStatus(payment.id, { status: PaymentStatus.CANCELLED })).rejects.toMatchObject({
-      status: 409,
+    const updated = await service.updateStatus(payment.id, { status: to });
+    expect(updated.status).toBe(to);
+    expect(repository.update).toHaveBeenCalledWith(updated);
+  });
+
+  it.each([
+    [PaymentStatus.PROCESSING, PaymentStatus.PENDING],
+    [PaymentStatus.SUCCEEDED, PaymentStatus.CANCELLED],
+    [PaymentStatus.FAILED, PaymentStatus.PROCESSING],
+    [PaymentStatus.CANCELLED, PaymentStatus.PROCESSING],
+  ])('rejects %s to %s', async (from, to) => {
+    repository.findById.mockResolvedValue({
+      id: 'pay_1',
+      amount: 1,
+      currency: Currency.CAD,
+      status: from,
+      createdAt: '',
+      updatedAt: '',
     });
+
+    await expect(service.updateStatus('pay_1', { status: to })).rejects.toMatchObject({ status: 409 });
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('throws for a missing payment', async () => {

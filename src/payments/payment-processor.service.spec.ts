@@ -21,7 +21,6 @@ describe('PaymentProcessorService', () => {
   it('processes successfully', async () => {
     repository.findById
       .mockResolvedValueOnce(payment)
-      .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
     const service = new PaymentProcessorService(
       repository,
@@ -33,20 +32,42 @@ describe('PaymentProcessorService', () => {
     expect(repository.update.mock.calls[1][0]).toMatchObject({ status: PaymentStatus.SUCCEEDED });
   });
 
-  it('does not process a cancelled payment', async () => {
-    repository.findById.mockResolvedValue({ ...payment, status: PaymentStatus.CANCELLED });
+  it('marks a payment as failed when the processor rejects it', async () => {
+    repository.findById
+      .mockResolvedValueOnce(payment)
+      .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
     const service = new PaymentProcessorService(
       repository,
       async () => undefined,
-      () => true,
+      () => false,
     );
+
     await service.process(payment.id);
-    expect(repository.update).not.toHaveBeenCalled();
+
+    expect(repository.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: PaymentStatus.FAILED,
+        failureReason: 'Simulated payment processor rejection',
+      }),
+    );
   });
+
+  it.each([PaymentStatus.SUCCEEDED, PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.PROCESSING])(
+    'does not process a %s payment',
+    async (status) => {
+      repository.findById.mockResolvedValue({ ...payment, status });
+      const service = new PaymentProcessorService(
+        repository,
+        async () => undefined,
+        () => true,
+      );
+      await service.process(payment.id);
+      expect(repository.update).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not overwrite a cancellation before final update', async () => {
     repository.findById
-      .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.CANCELLED });
     const service = new PaymentProcessorService(
