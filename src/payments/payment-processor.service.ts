@@ -22,7 +22,9 @@ export class PaymentProcessorService {
 
   async process(id: string): Promise<void> {
     const initial = await this.repository.findById(id);
-    if (!initial) return;
+    if (!initial) {
+      return;
+    }
 
     if (initial.status === PaymentStatus.CANCELLED) {
       this.logger.log(`Payment ${id} processing stopped because payment was cancelled`);

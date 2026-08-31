@@ -7,6 +7,7 @@ export interface Payment {
   currency: Currency;
   status: PaymentStatus;
   description?: string;
+  idempotencyKey?: string;
   failureReason?: string;
   createdAt: string;
   updatedAt: string;

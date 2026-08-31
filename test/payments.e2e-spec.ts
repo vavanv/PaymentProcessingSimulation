@@ -30,7 +30,9 @@ describe('Payments API', () => {
     await app.init();
   }, 15000);
   afterEach(async () => {
-    if (app) await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('supports health and validation', async () => {
@@ -54,6 +56,21 @@ describe('Payments API', () => {
       .send({ status: 'cancelled' })
       .expect(200);
     await request(app.getHttpServer()).get('/api/v1/payments/unknown').expect(404);
+  });
+
+  it('returns the original payment for a reused idempotency key', async () => {
+    const idempotencyKey = 'e2e-request-123';
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/payments')
+      .send({ amount: 10, currency: 'CAD', idempotencyKey })
+      .expect(201);
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/payments')
+      .send({ amount: 999, currency: 'CAD', idempotencyKey })
+      .expect(201);
+
+    expect(second.body).toEqual(first.body);
+    await request(app.getHttpServer()).get('/api/v1/payments').expect(200).expect([first.body]);
   });
 
   it('enforces valid payment transitions', async () => {

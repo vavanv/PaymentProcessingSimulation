@@ -15,7 +15,13 @@ describe('PaymentProcessorService', () => {
   let repository: jest.Mocked<PaymentRepository>;
 
   beforeEach(() => {
-    repository = { create: jest.fn(), findById: jest.fn(), update: jest.fn(async (item) => item), findAll: jest.fn() };
+    repository = {
+      create: jest.fn(),
+      findById: jest.fn(),
+      findByIdempotencyKey: jest.fn(),
+      update: jest.fn(async (item) => item),
+      findAll: jest.fn(),
+    };
   });
 
   it('processes successfully', async () => {

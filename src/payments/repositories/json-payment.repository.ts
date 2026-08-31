@@ -28,10 +28,17 @@ export class JsonPaymentRepository implements PaymentRepository {
     return payments.find((payment) => payment.id === id) ?? null;
   }
 
+  async findByIdempotencyKey(idempotencyKey: string): Promise<Payment | null> {
+    const payments = await this.readPayments();
+    return payments.find((payment) => payment.idempotencyKey === idempotencyKey) ?? null;
+  }
+
   async update(payment: Payment): Promise<Payment> {
     await this.mutate((payments) => {
       const index = payments.findIndex((item) => item.id === payment.id);
-      if (index < 0) return payments;
+      if (index < 0) {
+        return payments;
+      }
       const next = [...payments];
       next[index] = payment;
       return next;
@@ -48,8 +55,11 @@ export class JsonPaymentRepository implements PaymentRepository {
     try {
       await readFile(this.filePath, 'utf8');
     } catch (error: unknown) {
-      if (this.isNodeError(error, 'ENOENT')) await writeFile(this.filePath, '[]\n', 'utf8');
-      else throw error;
+      if (this.isNodeError(error, 'ENOENT')) {
+        await writeFile(this.filePath, '[]\n', 'utf8');
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -58,7 +68,9 @@ export class JsonPaymentRepository implements PaymentRepository {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) throw new Error('Payment store must contain a JSON array');
+      if (!Array.isArray(parsed)) {
+        throw new Error('Payment store must contain a JSON array');
+      }
       return parsed as Payment[];
     } catch (error: unknown) {
       this.logger.error(`Unable to read payment store: ${this.errorMessage(error)}`);

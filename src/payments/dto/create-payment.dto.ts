@@ -17,4 +17,13 @@ export class CreatePaymentDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiPropertyOptional({
+    example: '7f5e4d2d-3a9a-4d51-a4f7-9b81d0c2e119',
+    description: 'Client-generated idempotency key to prevent duplicate payment creation.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  idempotencyKey?: string;
 }

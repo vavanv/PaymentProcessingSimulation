@@ -14,6 +14,7 @@ describe('JsonPaymentRepository', () => {
     amount: 10,
     currency: Currency.CAD,
     status: PaymentStatus.PENDING,
+    idempotencyKey: `key-${id}`,
     createdAt: '',
     updatedAt: '',
   });
@@ -29,6 +30,8 @@ describe('JsonPaymentRepository', () => {
     expect(await repository.findAll()).toEqual([]);
     await repository.create(payment('one'));
     expect(await repository.findById('one')).toEqual(payment('one'));
+    expect(await repository.findByIdempotencyKey('key-one')).toEqual(payment('one'));
+    expect(await repository.findByIdempotencyKey('missing')).toBeNull();
     await repository.update({ ...payment('one'), status: PaymentStatus.SUCCEEDED });
     expect((await repository.findById('one'))?.status).toBe(PaymentStatus.SUCCEEDED);
     expect(await repository.findById('missing')).toBeNull();

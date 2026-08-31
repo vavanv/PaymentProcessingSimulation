@@ -13,6 +13,7 @@ describe('PaymentsService', () => {
     repository = {
       create: jest.fn(async (payment) => payment),
       findById: jest.fn(),
+      findByIdempotencyKey: jest.fn(),
       update: jest.fn(async (payment) => payment),
       findAll: jest.fn(),
     };
@@ -27,6 +28,33 @@ describe('PaymentsService', () => {
     expect(payment.createdAt).toBe(payment.updatedAt);
     expect(repository.create).toHaveBeenCalledWith(payment);
     expect(processor.process).toHaveBeenCalledWith(payment.id);
+  });
+
+  it('returns an existing payment for a reused idempotency key', async () => {
+    const existing = {
+      id: 'pay_existing',
+      amount: 100,
+      currency: Currency.CAD,
+      status: PaymentStatus.PROCESSING,
+      idempotencyKey: 'request-123',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:01.000Z',
+    };
+    repository.findByIdempotencyKey.mockResolvedValue(existing);
+
+    await expect(
+      service.create({ amount: 999, currency: Currency.CAD, idempotencyKey: 'request-123' }),
+    ).resolves.toEqual(existing);
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(processor.process).not.toHaveBeenCalled();
+  });
+
+  it('persists an idempotency key when creating a payment', async () => {
+    const payment = await service.create({ amount: 100, currency: Currency.CAD, idempotencyKey: 'request-123' });
+
+    expect(payment.idempotencyKey).toBe('request-123');
+    expect(repository.findByIdempotencyKey).toHaveBeenCalledWith('request-123');
+    expect(repository.create).toHaveBeenCalledWith(payment);
   });
 
   it.each([

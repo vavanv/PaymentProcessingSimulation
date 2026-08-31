@@ -21,6 +21,13 @@ export class PaymentsService {
   ) {}
 
   async create(dto: CreatePaymentDto): Promise<Payment> {
+    if (dto.idempotencyKey !== undefined) {
+      const existing = await this.repository.findByIdempotencyKey(dto.idempotencyKey);
+      if (existing) {
+        return existing;
+      }
+    }
+
     const now = new Date().toISOString();
     const payment: Payment = {
       id: `pay_${randomUUID()}`,
@@ -28,6 +35,7 @@ export class PaymentsService {
       currency: dto.currency,
       status: PaymentStatus.PENDING,
       ...(dto.description === undefined ? {} : { description: dto.description }),
+      ...(dto.idempotencyKey === undefined ? {} : { idempotencyKey: dto.idempotencyKey }),
       createdAt: now,
       updatedAt: now,
     };
@@ -48,7 +56,9 @@ export class PaymentsService {
 
   async findById(id: string): Promise<Payment> {
     const payment = await this.repository.findById(id);
-    if (!payment) throw new PaymentNotFoundException(id);
+    if (!payment) {
+      throw new PaymentNotFoundException(id);
+    }
     return payment;
   }
 
