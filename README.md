@@ -66,4 +66,4 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
    curl -i http://localhost:3000/api/v1/payments
 
-   expected 200 OK and all payments from payments.json
+   expected 200 OK and all payments from data/payments.json
