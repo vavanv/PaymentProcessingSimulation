@@ -41,5 +41,15 @@
     "description": "Order #1",
     "createdAt": "2026-09-01T02:02:55.503Z",
     "updatedAt": "2026-09-01T02:02:58.338Z"
+  },
+  {
+    "id": "pay_d7c7b117-b959-4b67-9ea8-a49850435993",
+    "amount": 100,
+    "currency": "CAD",
+    "status": "succeeded",
+    "description": "Order #1",
+    "idempotencyKey": "order-123",
+    "createdAt": "2026-09-01T13:54:22.992Z",
+    "updatedAt": "2026-09-01T13:54:25.152Z"
   }
 ]

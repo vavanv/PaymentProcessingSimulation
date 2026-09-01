@@ -67,3 +67,11 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
    curl -i http://localhost:3000/api/v1/payments
 
    expected 200 OK and all payments from data/payments.json
+
+6. Test idempotency enforcement
+
+   Sent the same create request two time.
+
+   curl -i -X POST http://localhost:3000/api/v1/payments -H "Content-Type: application/json" -d '{"amount": 100,"currency": "CAD","description": "Order #1","idempotencyKey": "order-123"}'
+
+   expected 201 Created - the system returns the same ID and payment details for both requests, preventing the creation of a duplicate payment
