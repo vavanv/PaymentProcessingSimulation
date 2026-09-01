@@ -31,3 +31,39 @@ Swagger is available at `http://localhost:3000/api/docs`.
 The lifecycle is `PENDING -> PROCESSING -> SUCCEEDED/FAILED`.
 
 The repository abstraction keeps persistence replaceable. JSON storage is intentionally simple and unsuitable for distributed production deployment; a real service would use a transactional database and durable worker queue.
+
+## TESTING
+
+1. Health check
+
+   curl -i http://localhost:3000/health
+
+   expected 200 OK - {"status":"ok"}. If it is not make sure the service is running (npm run start:dev or yar start:dev)
+
+2. Create a payment
+
+   curl -i -X POST http://localhost:3000/api/v1/payments -H "Content-Type: application/json" -d '{"amount":100,"currency":"CAD","description":"Order #1"}'
+
+   expected 201 Created
+
+3. Read one payment by ID
+
+   Replace the <payment_id> from the create response:
+
+   curl -i http://localhost:3000/api/v1/payments/<payment_id>
+
+   expected 200 OK
+
+4. Cancel a payment
+
+   Replace the <payment_id> from the create response
+
+   curl -i -X PATCH http://localhost:3000/api/v1/payments/<payment_id>/status -H "Content-Type: application/json" -d '{"status":"cancelled"}'
+
+   expected 409 Conflict - {"statusCode":409,"error":{"code":"INVALID_PAYMENT_TRANSITION","message":"Payment cannot transition from succeeded to cancelled"}}
+
+5. Read all payments
+
+   curl -i http://localhost:3000/api/v1/payments
+
+   expected 200 OK and all payments from payments.json

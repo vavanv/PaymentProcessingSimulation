@@ -51,8 +51,6 @@ describe('PaymentProcessorService', () => {
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
     const service = new PaymentProcessorService(
       repository,
-      async () => undefined,
-      () => true,
       domain,
       observability,
       gateway,
@@ -84,8 +82,6 @@ describe('PaymentProcessorService', () => {
     gateway.process.mockResolvedValue(false);
     const service = new PaymentProcessorService(
       repository,
-      async () => undefined,
-      () => false,
       domain,
       observability,
       gateway,
@@ -111,8 +107,6 @@ describe('PaymentProcessorService', () => {
       repository.findById.mockResolvedValue({ ...payment, status });
       const service = new PaymentProcessorService(
         repository,
-        async () => undefined,
-        () => true,
         domain,
         observability,
         gateway,
@@ -138,8 +132,6 @@ describe('PaymentProcessorService', () => {
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.CANCELLED });
     const service = new PaymentProcessorService(
       repository,
-      async () => undefined,
-      () => true,
       domain,
       observability,
       gateway,
