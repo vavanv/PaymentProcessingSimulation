@@ -38,7 +38,7 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
    curl -i http://localhost:3000/health
 
-   expected 200 OK - {"status":"ok"}. If it is not make sure the service is running (npm run start:dev or yar start:dev)
+   expected 200 OK - {"status":"ok"}. If it is not returning 200, make sure the service is running (npm run start:dev or yarn start:dev)
 
 2. Create a payment
 
