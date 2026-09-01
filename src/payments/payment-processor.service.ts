@@ -4,6 +4,7 @@ import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentDomainService } from './payment-domain.service';
 import { PaymentObservabilityService } from './payment-observability.service';
 import { PaymentRepository } from './repositories/payment.repository';
+import { PAYMENT_GATEWAY, PaymentGateway } from './providers/payment-gateway.interface';
 
 export const PROCESSING_DELAY = Symbol('PROCESSING_DELAY');
 export const PAYMENT_OUTCOME = Symbol('PAYMENT_OUTCOME');
@@ -20,6 +21,7 @@ export class PaymentProcessorService {
     @Inject(PAYMENT_OUTCOME) private readonly outcome: PaymentOutcome = () => Math.random() < 0.8,
     private readonly domain: PaymentDomainService,
     private readonly observability: PaymentObservabilityService,
+    @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
   ) {}
 
   async process(id: string): Promise<void> {
@@ -42,7 +44,7 @@ export class PaymentProcessorService {
     this.observability.logEvent(id, 'payment.processing_started', PaymentStatus.PROCESSING, 'Processing started');
     this.logger.log(`Payment ${id} processing started`);
 
-    await this.delay(this.processingDelay());
+    await this.delay(this.gateway.getProcessingDelay());
 
     const latest = await this.repository.findById(id);
     if (!latest || latest.status !== PaymentStatus.PROCESSING) {
@@ -56,8 +58,9 @@ export class PaymentProcessorService {
       return;
     }
 
-    const status = this.outcome() ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED;
-    await this.domain.complete(id, status === PaymentStatus.SUCCEEDED);
+    const succeeded = await this.gateway.process(id);
+    const status = succeeded ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED;
+    await this.domain.complete(id, succeeded);
 
     this.observability.logEvent(
       id,
@@ -66,9 +69,5 @@ export class PaymentProcessorService {
       status === PaymentStatus.SUCCEEDED ? 'Payment succeeded' : 'Payment failed',
     );
     this.logger.log(`Payment ${id}: processing -> ${status}`);
-  }
-
-  protected processingDelay(): number {
-    return 1000 + Math.floor(Math.random() * 2001);
   }
 }

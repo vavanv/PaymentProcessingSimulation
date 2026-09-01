@@ -4,6 +4,7 @@ import { PaymentProcessorService } from './payment-processor.service';
 import { PaymentRepository } from './repositories/payment.repository';
 import { PaymentObservabilityService } from './payment-observability.service';
 import { PaymentDomainService } from './payment-domain.service';
+import { PaymentGateway } from './providers/payment-gateway.interface';
 
 describe('PaymentProcessorService', () => {
   const payment = {
@@ -17,6 +18,7 @@ describe('PaymentProcessorService', () => {
   let repository: jest.Mocked<PaymentRepository>;
   let domain: jest.Mocked<PaymentDomainService>;
   let observability: jest.Mocked<PaymentObservabilityService>;
+  let gateway: jest.Mocked<PaymentGateway>;
 
   beforeEach(() => {
     repository = {
@@ -37,6 +39,10 @@ describe('PaymentProcessorService', () => {
       })),
     } as unknown as jest.Mocked<PaymentDomainService>;
     observability = { logEvent: jest.fn() } as unknown as jest.Mocked<PaymentObservabilityService>;
+    gateway = {
+      process: jest.fn(async (_paymentId: string) => true),
+      getProcessingDelay: jest.fn(() => 0),
+    };
   });
 
   it('processes successfully', async () => {
@@ -49,6 +55,7 @@ describe('PaymentProcessorService', () => {
       () => true,
       domain,
       observability,
+      gateway,
     );
     await service.process(payment.id);
     expect(repository.update).not.toHaveBeenCalled();
@@ -74,12 +81,14 @@ describe('PaymentProcessorService', () => {
     repository.findById
       .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
+    gateway.process.mockResolvedValue(false);
     const service = new PaymentProcessorService(
       repository,
       async () => undefined,
       () => false,
       domain,
       observability,
+      gateway,
     );
 
     await service.process(payment.id);
@@ -106,6 +115,7 @@ describe('PaymentProcessorService', () => {
         () => true,
         domain,
         observability,
+        gateway,
       );
       await service.process(payment.id);
       expect(repository.update).not.toHaveBeenCalled();
@@ -132,6 +142,7 @@ describe('PaymentProcessorService', () => {
       () => true,
       domain,
       observability,
+      gateway,
     );
     await service.process(payment.id);
     expect(repository.update).not.toHaveBeenCalled();
