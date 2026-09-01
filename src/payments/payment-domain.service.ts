@@ -131,5 +131,4 @@ export class PaymentDomainService {
     this.logger.log(`Domain: payment ${paymentId} completed as ${nextStatus}`);
     return updated;
   }
-
 }

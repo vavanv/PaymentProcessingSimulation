@@ -91,7 +91,11 @@ describe('PaymentsService', () => {
 
     expect(payment.idempotencyKey).toBe('request-123');
     expect(repository.findByIdempotencyKey).toHaveBeenCalledWith('request-123');
-    expect(domain.createPending).toHaveBeenCalledWith({ amount: 100, currency: Currency.CAD, idempotencyKey: 'request-123' });
+    expect(domain.createPending).toHaveBeenCalledWith({
+      amount: 100,
+      currency: Currency.CAD,
+      idempotencyKey: 'request-123',
+    });
   });
 
   it('cancels a payment through the domain service', async () => {
@@ -117,7 +121,8 @@ describe('PaymentsService', () => {
   });
 
   it.each([PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED, PaymentStatus.FAILED])(
-    'rejects unsupported status updates to %s', async (status) => {
+    'rejects unsupported status updates to %s',
+    async (status) => {
       repository.findById.mockResolvedValue({
         id: 'pay_1',
         amount: 1,

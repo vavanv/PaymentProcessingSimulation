@@ -20,7 +20,12 @@ export class PaymentProcessorService {
   async process(id: string): Promise<void> {
     const initial = await this.repository.findById(id);
     if (!initial) {
-      this.observability.logEvent(id, 'payment.processing_skipped', undefined, 'Processing skipped because payment was not found');
+      this.observability.logEvent(
+        id,
+        'payment.processing_skipped',
+        undefined,
+        'Processing skipped because payment was not found',
+      );
       this.logger.warn(`Payment ${id} processing skipped because payment was not found`);
       return;
     }

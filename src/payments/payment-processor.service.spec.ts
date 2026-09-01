@@ -40,7 +40,7 @@ describe('PaymentProcessorService', () => {
     } as unknown as jest.Mocked<PaymentDomainService>;
     observability = { logEvent: jest.fn() } as unknown as jest.Mocked<PaymentObservabilityService>;
     gateway = {
-      process: jest.fn(async (_paymentId: string) => true),
+      process: jest.fn<Promise<boolean>, [string]>(async () => true),
       getProcessingDelay: jest.fn(() => 0),
     };
   });
@@ -49,12 +49,7 @@ describe('PaymentProcessorService', () => {
     repository.findById
       .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
-    const service = new PaymentProcessorService(
-      repository,
-      domain,
-      observability,
-      gateway,
-    );
+    const service = new PaymentProcessorService(repository, domain, observability, gateway);
     await service.process(payment.id);
     expect(repository.update).not.toHaveBeenCalled();
     expect(domain.startProcessing).toHaveBeenCalledWith(payment.id);
@@ -80,12 +75,7 @@ describe('PaymentProcessorService', () => {
       .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.PROCESSING });
     gateway.process.mockResolvedValue(false);
-    const service = new PaymentProcessorService(
-      repository,
-      domain,
-      observability,
-      gateway,
-    );
+    const service = new PaymentProcessorService(repository, domain, observability, gateway);
 
     await service.process(payment.id);
 
@@ -105,12 +95,7 @@ describe('PaymentProcessorService', () => {
     'does not process a %s payment',
     async (status) => {
       repository.findById.mockResolvedValue({ ...payment, status });
-      const service = new PaymentProcessorService(
-        repository,
-        domain,
-        observability,
-        gateway,
-      );
+      const service = new PaymentProcessorService(repository, domain, observability, gateway);
       await service.process(payment.id);
       expect(repository.update).not.toHaveBeenCalled();
       if (status === PaymentStatus.CANCELLED) {
@@ -151,12 +136,7 @@ describe('PaymentProcessorService', () => {
     repository.findById
       .mockResolvedValueOnce(payment)
       .mockResolvedValueOnce({ ...payment, status: PaymentStatus.CANCELLED });
-    const service = new PaymentProcessorService(
-      repository,
-      domain,
-      observability,
-      gateway,
-    );
+    const service = new PaymentProcessorService(repository, domain, observability, gateway);
     await service.process(payment.id);
     expect(repository.update).not.toHaveBeenCalled();
     expect(domain.startProcessing).toHaveBeenCalledWith(payment.id);

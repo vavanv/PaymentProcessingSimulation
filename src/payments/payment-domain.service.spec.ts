@@ -1,6 +1,7 @@
 import { Currency } from './enums/currency.enum';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentDomainService } from './payment-domain.service';
+import { Payment } from './models/payment.model';
 import { PaymentRepository } from './repositories/payment.repository';
 
 describe('PaymentDomainService', () => {
@@ -53,9 +54,7 @@ describe('PaymentDomainService', () => {
     repository.findById.mockResolvedValue({ ...payment, status });
 
     const updated =
-      operation === 'cancel'
-        ? await service.cancel(payment.id)
-        : await service.startProcessing(payment.id);
+      operation === 'cancel' ? await service.cancel(payment.id) : await service.startProcessing(payment.id);
 
     expect(updated.status).toBe(nextStatus);
     expect(repository.update).toHaveBeenCalledWith(updated);
@@ -75,9 +74,9 @@ describe('PaymentDomainService', () => {
   });
 
   it.each([
-    ['cancel', () => service.cancel(payment.id)],
-    ['start processing', () => service.startProcessing(payment.id)],
-    ['complete', () => service.complete(payment.id, true)],
+    ['cancel', (): Promise<Payment> => service.cancel(payment.id)],
+    ['start processing', (): Promise<Payment> => service.startProcessing(payment.id)],
+    ['complete', (): Promise<Payment> => service.complete(payment.id, true)],
   ])('throws when the payment is missing for %s', async (_operation, action) => {
     repository.findById.mockResolvedValue(null);
 
