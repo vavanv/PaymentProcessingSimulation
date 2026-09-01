@@ -8,6 +8,8 @@ A small NestJS service that simulates asynchronous payment processing using a JS
 
 - `plan.md` - Codex implementation plan
 
+- `codex-session-xxxxxxx..xx.md` - codex session transcript
+
 ## Requirements and setup
 
 Node.js 22+ and npm are required.
