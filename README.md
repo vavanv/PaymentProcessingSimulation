@@ -12,29 +12,53 @@ A small NestJS service that simulates asynchronous payment processing using a JS
 
 Node.js 22+ and npm are required.
 
-get source code
+1. **Clone the repository**
 
-```run git clone
+   ```run git clone
 
-git clone https://github.com/vavanv/PaymentProcessingSimulation.git
+   git clone https://github.com/vavanv/PaymentProcessingSimulation.git
 
-```
+   ```
 
-cd into the directory where the project was cloned
+2. **Install dependencies**
 
-```bash npm
-npm install
-npm run start:dev
+   cd into the directory where the project was cloned
 
-or yarn
+   ```bash
+   npm install
 
-yarn
-yarn start:dev
-```
+   # or
 
-Build and test with `npm run build`, `npm test`, and `npm run test:e2e` (`yarn build`,`yarn test`, and `yarn test:e2e`).
+   yarn
+   ```
 
-Swagger is available at `http://localhost:3000/api/docs`.
+3. **Start the development server**
+
+   ```bash
+   npm run start:dev
+
+   # or
+
+   yarn start:dev
+   ```
+
+   4. **Build server**
+
+   ```bash
+   npm run build
+
+   # or
+
+   yarn build
+   ```
+
+4. **Run tests (optional)**
+
+   `npm run build`, `npm test`, and `npm run test:e2e` (`yarn build`,`yarn test`, and `yarn test:e2e`).
+
+5. **Swagger**
+
+   `http://localhost:3000/api/docs`.
 
 ## API
 
