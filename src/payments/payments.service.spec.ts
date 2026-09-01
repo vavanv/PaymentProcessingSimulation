@@ -3,10 +3,12 @@ import { PaymentsService } from './payments.service';
 import { PaymentRepository } from './repositories/payment.repository';
 import { PaymentProcessorService } from './payment-processor.service';
 import { Currency } from './enums/currency.enum';
+import { PaymentDomainService } from './payment-domain.service';
 import { PaymentObservabilityService } from './payment-observability.service';
 
 describe('PaymentsService', () => {
   let repository: jest.Mocked<PaymentRepository>;
+  let domain: jest.Mocked<PaymentDomainService>;
   let processor: jest.Mocked<PaymentProcessorService>;
   let observability: jest.Mocked<PaymentObservabilityService>;
   let service: PaymentsService;
@@ -19,17 +21,34 @@ describe('PaymentsService', () => {
       update: jest.fn(async (payment) => payment),
       findAll: jest.fn(),
     };
+    domain = {
+      createPending: jest.fn(),
+      cancel: jest.fn(),
+      startProcessing: jest.fn(),
+      complete: jest.fn(),
+    } as unknown as jest.Mocked<PaymentDomainService>;
     processor = { process: jest.fn(async () => undefined) } as unknown as jest.Mocked<PaymentProcessorService>;
     observability = { logEvent: jest.fn() } as unknown as jest.Mocked<PaymentObservabilityService>;
-    service = new PaymentsService(repository, processor, observability);
+    service = new PaymentsService(repository, domain, processor, observability);
   });
 
   it('creates a pending payment and triggers processing without awaiting it', async () => {
+    const expectedPayment = {
+      id: 'pay_1',
+      amount: 100,
+      currency: Currency.CAD,
+      status: PaymentStatus.PENDING,
+      createdAt: '',
+      updatedAt: '',
+    };
+    domain.createPending.mockResolvedValue(expectedPayment);
+
     const payment = await service.create({ amount: 100, currency: Currency.CAD });
     expect(payment).toMatchObject({ amount: 100, currency: Currency.CAD, status: PaymentStatus.PENDING });
     expect(payment.id).toMatch(/^pay_/);
     expect(payment.createdAt).toBe(payment.updatedAt);
-    expect(repository.create).toHaveBeenCalledWith(payment);
+    expect(domain.createPending).toHaveBeenCalledWith({ amount: 100, currency: Currency.CAD });
+    expect(repository.create).not.toHaveBeenCalled();
     expect(processor.process).toHaveBeenCalledWith(payment.id);
     expect(observability.logEvent).toHaveBeenCalledWith(
       payment.id,
@@ -59,52 +78,50 @@ describe('PaymentsService', () => {
   });
 
   it('persists an idempotency key when creating a payment', async () => {
+    domain.createPending.mockImplementation(async (dto) => ({
+      id: 'pay_1',
+      amount: dto.amount,
+      currency: dto.currency,
+      status: PaymentStatus.PENDING,
+      idempotencyKey: dto.idempotencyKey,
+      createdAt: '',
+      updatedAt: '',
+    }));
     const payment = await service.create({ amount: 100, currency: Currency.CAD, idempotencyKey: 'request-123' });
 
     expect(payment.idempotencyKey).toBe('request-123');
     expect(repository.findByIdempotencyKey).toHaveBeenCalledWith('request-123');
-    expect(repository.create).toHaveBeenCalledWith(payment);
+    expect(domain.createPending).toHaveBeenCalledWith({ amount: 100, currency: Currency.CAD, idempotencyKey: 'request-123' });
   });
 
-  it.each([
-    [PaymentStatus.PENDING, PaymentStatus.PROCESSING, 'payment.processing_started'],
-    [PaymentStatus.PENDING, PaymentStatus.CANCELLED, 'payment.cancelled'],
-    [PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED, 'payment.succeeded'],
-    [PaymentStatus.PROCESSING, PaymentStatus.FAILED, 'payment.failed'],
-  ])('allows %s to transition to %s', async (from, to, event) => {
+  it('cancels a payment through the domain service', async () => {
     const payment = {
       id: 'pay_1',
       amount: 1,
       currency: Currency.CAD,
-      status: from,
+      status: PaymentStatus.PENDING,
       createdAt: '',
       updatedAt: '',
     };
-    repository.findById.mockResolvedValue(payment);
-    const updated = await service.updateStatus(payment.id, { status: to });
-    expect(updated.status).toBe(to);
-    expect(repository.update).toHaveBeenCalledWith(updated);
-    expect(observability.logEvent).toHaveBeenCalledWith(payment.id, event, to, `Payment ${to}`);
+    const updated = { ...payment, status: PaymentStatus.CANCELLED };
+    domain.cancel.mockResolvedValue(updated);
+
+    await expect(service.updateStatus(payment.id, { status: PaymentStatus.CANCELLED })).resolves.toEqual(updated);
+    expect(domain.cancel).toHaveBeenCalledWith(payment.id);
+    expect(observability.logEvent).toHaveBeenCalledWith(
+      payment.id,
+      'payment.cancelled',
+      PaymentStatus.CANCELLED,
+      'Payment cancelled',
+    );
   });
 
-  it.each([
-    [PaymentStatus.PROCESSING, PaymentStatus.PENDING],
-    [PaymentStatus.SUCCEEDED, PaymentStatus.CANCELLED],
-    [PaymentStatus.FAILED, PaymentStatus.PROCESSING],
-    [PaymentStatus.CANCELLED, PaymentStatus.PROCESSING],
-  ])('rejects %s to %s', async (from, to) => {
-    repository.findById.mockResolvedValue({
-      id: 'pay_1',
-      amount: 1,
-      currency: Currency.CAD,
-      status: from,
-      createdAt: '',
-      updatedAt: '',
-    });
-
-    await expect(service.updateStatus('pay_1', { status: to })).rejects.toMatchObject({ status: 409 });
-    expect(repository.update).not.toHaveBeenCalled();
-  });
+  it.each([PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED, PaymentStatus.FAILED])(
+    'rejects unsupported status updates to %s', async (status) => {
+      await expect(service.updateStatus('pay_1', { status })).rejects.toThrow(`Unsupported status update: ${status}`);
+      expect(domain.cancel).not.toHaveBeenCalled();
+    },
+  );
 
   it('throws for a missing payment', async () => {
     repository.findById.mockResolvedValue(null);

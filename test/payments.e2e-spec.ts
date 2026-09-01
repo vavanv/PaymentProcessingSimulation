@@ -73,7 +73,7 @@ describe('Payments API', () => {
     await request(app.getHttpServer()).get('/api/v1/payments').expect(200).expect([first.body]);
   });
 
-  it('enforces valid payment transitions', async () => {
+  it('rejects cancelling a payment more than once', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/payments')
       .send({ amount: 10, currency: 'CAD' })
@@ -81,11 +81,7 @@ describe('Payments API', () => {
 
     await request(app.getHttpServer())
       .patch(`/api/v1/payments/${response.body.id}/status`)
-      .send({ status: 'processing' })
-      .expect(200);
-    await request(app.getHttpServer())
-      .patch(`/api/v1/payments/${response.body.id}/status`)
-      .send({ status: 'succeeded' })
+      .send({ status: 'cancelled' })
       .expect(200);
     await request(app.getHttpServer())
       .patch(`/api/v1/payments/${response.body.id}/status`)
@@ -101,30 +97,18 @@ describe('Payments API', () => {
 
     await request(app.getHttpServer())
       .patch(`/api/v1/payments/${response.body.id}/status`)
-      .send({ status: 'succeeded' })
-      .expect(409)
-      .expect({
-        statusCode: 409,
-        error: {
-          code: 'INVALID_PAYMENT_TRANSITION',
-          message: 'Payment cannot transition from pending to succeeded',
-        },
-      });
-
-    await request(app.getHttpServer())
-      .patch(`/api/v1/payments/${response.body.id}/status`)
       .send({ status: 'cancelled' })
       .expect(200);
 
     await request(app.getHttpServer())
       .patch(`/api/v1/payments/${response.body.id}/status`)
-      .send({ status: 'processing' })
+      .send({ status: 'cancelled' })
       .expect(409)
       .expect({
         statusCode: 409,
         error: {
           code: 'INVALID_PAYMENT_TRANSITION',
-          message: 'Payment cannot transition from cancelled to processing',
+          message: 'Payment cannot transition from cancelled to cancelled',
         },
       });
   });

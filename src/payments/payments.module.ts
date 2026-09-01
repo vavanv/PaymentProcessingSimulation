@@ -5,12 +5,14 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { JsonPaymentRepository } from './repositories/json-payment.repository';
 import { PaymentObservabilityService } from './payment-observability.service';
+import { PaymentDomainService } from './payment-domain.service';
 
 @Module({
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
     PaymentProcessorService,
+    PaymentDomainService,
     PaymentObservabilityService,
     JsonPaymentRepository,
     { provide: PAYMENT_REPOSITORY, useExisting: JsonPaymentRepository },

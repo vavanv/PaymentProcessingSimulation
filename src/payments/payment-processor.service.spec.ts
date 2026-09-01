@@ -3,6 +3,7 @@ import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentProcessorService } from './payment-processor.service';
 import { PaymentRepository } from './repositories/payment.repository';
 import { PaymentObservabilityService } from './payment-observability.service';
+import { PaymentDomainService } from './payment-domain.service';
 
 describe('PaymentProcessorService', () => {
   const payment = {
@@ -14,6 +15,7 @@ describe('PaymentProcessorService', () => {
     updatedAt: '',
   };
   let repository: jest.Mocked<PaymentRepository>;
+  let domain: jest.Mocked<PaymentDomainService>;
   let observability: jest.Mocked<PaymentObservabilityService>;
 
   beforeEach(() => {
@@ -24,6 +26,16 @@ describe('PaymentProcessorService', () => {
       update: jest.fn(async (item) => item),
       findAll: jest.fn(),
     };
+    domain = {
+      createPending: jest.fn(),
+      cancel: jest.fn(),
+      startProcessing: jest.fn(async () => ({ ...payment, status: PaymentStatus.PROCESSING })),
+      complete: jest.fn(async (id, successful) => ({
+        ...payment,
+        id,
+        status: successful ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
+      })),
+    } as unknown as jest.Mocked<PaymentDomainService>;
     observability = { logEvent: jest.fn() } as unknown as jest.Mocked<PaymentObservabilityService>;
   });
 
@@ -35,11 +47,13 @@ describe('PaymentProcessorService', () => {
       repository,
       async () => undefined,
       () => true,
+      domain,
       observability,
     );
     await service.process(payment.id);
-    expect(repository.update).toHaveBeenCalledTimes(2);
-    expect(repository.update.mock.calls[1][0]).toMatchObject({ status: PaymentStatus.SUCCEEDED });
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(domain.startProcessing).toHaveBeenCalledWith(payment.id);
+    expect(domain.complete).toHaveBeenCalledWith(payment.id, true);
     expect(observability.logEvent).toHaveBeenNthCalledWith(
       1,
       payment.id,
@@ -64,17 +78,15 @@ describe('PaymentProcessorService', () => {
       repository,
       async () => undefined,
       () => false,
+      domain,
       observability,
     );
 
     await service.process(payment.id);
 
-    expect(repository.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        status: PaymentStatus.FAILED,
-        failureReason: 'Simulated payment processor rejection',
-      }),
-    );
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(domain.startProcessing).toHaveBeenCalledWith(payment.id);
+    expect(domain.complete).toHaveBeenCalledWith(payment.id, false);
     expect(observability.logEvent).toHaveBeenNthCalledWith(
       2,
       payment.id,
@@ -92,6 +104,7 @@ describe('PaymentProcessorService', () => {
         repository,
         async () => undefined,
         () => true,
+        domain,
         observability,
       );
       await service.process(payment.id);
@@ -117,10 +130,13 @@ describe('PaymentProcessorService', () => {
       repository,
       async () => undefined,
       () => true,
+      domain,
       observability,
     );
     await service.process(payment.id);
-    expect(repository.update).toHaveBeenCalledTimes(1);
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(domain.startProcessing).toHaveBeenCalledWith(payment.id);
+    expect(domain.complete).not.toHaveBeenCalled();
     expect(observability.logEvent).toHaveBeenNthCalledWith(
       1,
       payment.id,

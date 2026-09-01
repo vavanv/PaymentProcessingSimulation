@@ -1,10 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { PaymentStatus } from './enums/payment-status.enum';
-import { Payment } from './models/payment.model';
-import { PaymentStateMachine } from './payment-state-machine';
-import { PaymentRepository } from './repositories/payment.repository';
+import { PaymentDomainService } from './payment-domain.service';
 import { PaymentObservabilityService } from './payment-observability.service';
+import { PaymentRepository } from './repositories/payment.repository';
 
 export const PROCESSING_DELAY = Symbol('PROCESSING_DELAY');
 export const PAYMENT_OUTCOME = Symbol('PAYMENT_OUTCOME');
@@ -19,6 +18,7 @@ export class PaymentProcessorService {
     @Inject(PAYMENT_REPOSITORY) private readonly repository: PaymentRepository,
     @Inject(PROCESSING_DELAY) private readonly delay: Delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     @Inject(PAYMENT_OUTCOME) private readonly outcome: PaymentOutcome = () => Math.random() < 0.8,
+    private readonly domain: PaymentDomainService,
     private readonly observability: PaymentObservabilityService,
   ) {}
 
@@ -34,16 +34,11 @@ export class PaymentProcessorService {
       return;
     }
 
-    if (!PaymentStateMachine.canTransition(initial.status, PaymentStatus.PROCESSING)) {
+    if (initial.status !== PaymentStatus.PENDING) {
       return;
     }
 
-    await this.repository.update({
-      ...initial,
-      status: PaymentStatus.PROCESSING,
-      updatedAt: new Date().toISOString(),
-    });
-
+    await this.domain.startProcessing(id);
     this.observability.logEvent(id, 'payment.processing_started', PaymentStatus.PROCESSING, 'Processing started');
     this.logger.log(`Payment ${id} processing started`);
 
@@ -62,20 +57,8 @@ export class PaymentProcessorService {
     }
 
     const status = this.outcome() ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED;
+    await this.domain.complete(id, status === PaymentStatus.SUCCEEDED);
 
-    if (!PaymentStateMachine.canTransition(latest.status, status)) {
-      this.logger.warn(`Payment ${id} cannot transition to ${status} from ${latest.status}`);
-      return;
-    }
-
-    const finalPayment: Payment = {
-      ...latest,
-      status,
-      updatedAt: new Date().toISOString(),
-      ...(status === PaymentStatus.FAILED ? { failureReason: 'Simulated payment processor rejection' } : {}),
-    };
-
-    await this.repository.update(finalPayment);
     this.observability.logEvent(
       id,
       status === PaymentStatus.SUCCEEDED ? 'payment.succeeded' : 'payment.failed',

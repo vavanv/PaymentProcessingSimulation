@@ -1,17 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { PaymentStatus } from './enums/payment-status.enum';
-import { InvalidPaymentTransitionException } from './exceptions/invalid-payment-transition.exception';
 import { PaymentNotFoundException } from './exceptions/payment-not-found.exception';
 import { Payment } from './models/payment.model';
+import { PaymentDomainService } from './payment-domain.service';
+import { PaymentObservabilityService } from './payment-observability.service';
 import { PaymentProcessorService } from './payment-processor.service';
 import { PaymentRepository } from './repositories/payment.repository';
-import { PaymentStateMachine } from './payment-state-machine';
-import { PaymentObservabilityService } from './payment-observability.service';
-import { PaymentEventType } from './models/payment-event.model';
 
 @Injectable()
 export class PaymentsService {
@@ -19,6 +16,7 @@ export class PaymentsService {
 
   constructor(
     @Inject(PAYMENT_REPOSITORY) private readonly repository: PaymentRepository,
+    private readonly domain: PaymentDomainService,
     private readonly processor: PaymentProcessorService,
     private readonly observability: PaymentObservabilityService,
   ) {}
@@ -31,23 +29,8 @@ export class PaymentsService {
       }
     }
 
-    const now = new Date().toISOString();
-    const payment: Payment = {
-      id: `pay_${randomUUID()}`,
-      amount: dto.amount,
-      currency: dto.currency,
-      status: PaymentStatus.PENDING,
-      ...(dto.description === undefined ? {} : { description: dto.description }),
-      ...(dto.idempotencyKey === undefined ? {} : { idempotencyKey: dto.idempotencyKey }),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await this.repository.create(payment);
-
+    const payment = await this.domain.createPending(dto);
     this.observability.logEvent(payment.id, 'payment.created', payment.status, 'Payment created');
-
-    this.logger.log(`Payment ${payment.id} created`);
 
     void this.processor
       .process(payment.id)
@@ -73,39 +56,12 @@ export class PaymentsService {
   }
 
   async updateStatus(id: string, dto: UpdatePaymentStatusDto): Promise<Payment> {
-    const payment = await this.findById(id);
-
-    if (!PaymentStateMachine.canTransition(payment.status, dto.status)) {
-      throw new InvalidPaymentTransitionException(payment.status, dto.status);
+    if (dto.status !== PaymentStatus.CANCELLED) {
+      throw new Error(`Unsupported status update: ${dto.status}`);
     }
 
-    const updated: Payment = {
-      ...payment,
-      status: dto.status,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await this.repository.update(updated);
-
-    const event = this.eventForStatus(dto.status);
-    this.observability.logEvent(id, event, dto.status, `Payment ${dto.status}`);
-
-    this.logger.log(`Payment ${id}: ${payment.status} -> ${dto.status}`);
+    const updated = await this.domain.cancel(id);
+    this.observability.logEvent(id, 'payment.cancelled', PaymentStatus.CANCELLED, 'Payment cancelled');
     return updated;
-  }
-
-  private eventForStatus(status: PaymentStatus): PaymentEventType {
-    switch (status) {
-      case PaymentStatus.PROCESSING:
-        return 'payment.processing_started';
-      case PaymentStatus.SUCCEEDED:
-        return 'payment.succeeded';
-      case PaymentStatus.FAILED:
-        return 'payment.failed';
-      case PaymentStatus.CANCELLED:
-        return 'payment.cancelled';
-      default:
-        throw new Error(`Unsupported payment status: ${status}`);
-    }
   }
 }
