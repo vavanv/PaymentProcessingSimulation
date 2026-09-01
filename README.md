@@ -2,6 +2,12 @@
 
 A small NestJS service that simulates asynchronous payment processing using a JSON file. It is intended for demonstration and technical-assignment use, not production payments.
 
+## Implementation plan
+
+- `chat-gpt-session-transcript.md` - Architecture discussion transcript
+
+- `plan.md` - Codex implementation plan
+
 ## Requirements and setup
 
 Node.js 22+ and npm are required.
@@ -34,19 +40,19 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
 ## TESTING
 
-1. Health check
+1. `Health check`
 
    curl -i http://localhost:3000/health
 
    expected 200 OK - {"status":"ok"}. If it is not returning 200, make sure the service is running (npm run start:dev or yarn start:dev)
 
-2. Create a payment
+2. `Create a payment`
 
    curl -i -X POST http://localhost:3000/api/v1/payments -H "Content-Type: application/json" -d '{"amount":100,"currency":"CAD","description":"Order #1"}'
 
    expected 201 Created
 
-3. Read one payment by ID
+3. `Read one payment by ID`
 
    Replace the <payment_id> from the create response:
 
@@ -54,7 +60,7 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
    expected 200 OK
 
-4. Cancel a payment
+4. `Cancel a payment`
 
    Replace the <payment_id> from the create response
 
@@ -62,13 +68,13 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
    expected 409 Conflict - {"statusCode":409,"error":{"code":"INVALID_PAYMENT_TRANSITION","message":"Payment cannot transition from succeeded to cancelled"}}
 
-5. Read all payments
+5. `Read all payments`
 
    curl -i http://localhost:3000/api/v1/payments
 
    expected 200 OK and all payments from data/payments.json
 
-6. Test idempotency enforcement
+6. `Test idempotency enforcement`
 
    Sent the same create request two time.
 
