@@ -10,6 +10,8 @@ import { Payment } from './models/payment.model';
 import { PaymentProcessorService } from './payment-processor.service';
 import { PaymentRepository } from './repositories/payment.repository';
 import { PaymentStateMachine } from './payment-state-machine';
+import { PaymentObservabilityService } from './payment-observability.service';
+import { PaymentEventType } from './models/payment-event.model';
 
 @Injectable()
 export class PaymentsService {
@@ -18,6 +20,7 @@ export class PaymentsService {
   constructor(
     @Inject(PAYMENT_REPOSITORY) private readonly repository: PaymentRepository,
     private readonly processor: PaymentProcessorService,
+    private readonly observability: PaymentObservabilityService,
   ) {}
 
   async create(dto: CreatePaymentDto): Promise<Payment> {
@@ -41,6 +44,9 @@ export class PaymentsService {
     };
 
     await this.repository.create(payment);
+
+    this.observability.logEvent(payment.id, 'payment.created', payment.status, 'Payment created');
+
     this.logger.log(`Payment ${payment.id} created`);
 
     void this.processor
@@ -80,7 +86,26 @@ export class PaymentsService {
     };
 
     await this.repository.update(updated);
+
+    const event = this.eventForStatus(dto.status);
+    this.observability.logEvent(id, event, dto.status, `Payment ${dto.status}`);
+
     this.logger.log(`Payment ${id}: ${payment.status} -> ${dto.status}`);
     return updated;
+  }
+
+  private eventForStatus(status: PaymentStatus): PaymentEventType {
+    switch (status) {
+      case PaymentStatus.PROCESSING:
+        return 'payment.processing_started';
+      case PaymentStatus.SUCCEEDED:
+        return 'payment.succeeded';
+      case PaymentStatus.FAILED:
+        return 'payment.failed';
+      case PaymentStatus.CANCELLED:
+        return 'payment.cancelled';
+      default:
+        throw new Error(`Unsupported payment status: ${status}`);
+    }
   }
 }

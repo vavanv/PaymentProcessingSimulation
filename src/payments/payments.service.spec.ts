@@ -3,10 +3,12 @@ import { PaymentsService } from './payments.service';
 import { PaymentRepository } from './repositories/payment.repository';
 import { PaymentProcessorService } from './payment-processor.service';
 import { Currency } from './enums/currency.enum';
+import { PaymentObservabilityService } from './payment-observability.service';
 
 describe('PaymentsService', () => {
   let repository: jest.Mocked<PaymentRepository>;
   let processor: jest.Mocked<PaymentProcessorService>;
+  let observability: jest.Mocked<PaymentObservabilityService>;
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -18,7 +20,8 @@ describe('PaymentsService', () => {
       findAll: jest.fn(),
     };
     processor = { process: jest.fn(async () => undefined) } as unknown as jest.Mocked<PaymentProcessorService>;
-    service = new PaymentsService(repository, processor);
+    observability = { logEvent: jest.fn() } as unknown as jest.Mocked<PaymentObservabilityService>;
+    service = new PaymentsService(repository, processor, observability);
   });
 
   it('creates a pending payment and triggers processing without awaiting it', async () => {
@@ -28,6 +31,12 @@ describe('PaymentsService', () => {
     expect(payment.createdAt).toBe(payment.updatedAt);
     expect(repository.create).toHaveBeenCalledWith(payment);
     expect(processor.process).toHaveBeenCalledWith(payment.id);
+    expect(observability.logEvent).toHaveBeenCalledWith(
+      payment.id,
+      'payment.created',
+      PaymentStatus.PENDING,
+      'Payment created',
+    );
   });
 
   it('returns an existing payment for a reused idempotency key', async () => {
@@ -58,11 +67,11 @@ describe('PaymentsService', () => {
   });
 
   it.each([
-    [PaymentStatus.PENDING, PaymentStatus.PROCESSING],
-    [PaymentStatus.PENDING, PaymentStatus.CANCELLED],
-    [PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED],
-    [PaymentStatus.PROCESSING, PaymentStatus.FAILED],
-  ])('allows %s to transition to %s', async (from, to) => {
+    [PaymentStatus.PENDING, PaymentStatus.PROCESSING, 'payment.processing_started'],
+    [PaymentStatus.PENDING, PaymentStatus.CANCELLED, 'payment.cancelled'],
+    [PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED, 'payment.succeeded'],
+    [PaymentStatus.PROCESSING, PaymentStatus.FAILED, 'payment.failed'],
+  ])('allows %s to transition to %s', async (from, to, event) => {
     const payment = {
       id: 'pay_1',
       amount: 1,
@@ -75,6 +84,7 @@ describe('PaymentsService', () => {
     const updated = await service.updateStatus(payment.id, { status: to });
     expect(updated.status).toBe(to);
     expect(repository.update).toHaveBeenCalledWith(updated);
+    expect(observability.logEvent).toHaveBeenCalledWith(payment.id, event, to, `Payment ${to}`);
   });
 
   it.each([

@@ -4,12 +4,14 @@ import { PaymentProcessorService, PAYMENT_OUTCOME, PROCESSING_DELAY } from './pa
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { JsonPaymentRepository } from './repositories/json-payment.repository';
+import { PaymentObservabilityService } from './payment-observability.service';
 
 @Module({
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
     PaymentProcessorService,
+    PaymentObservabilityService,
     JsonPaymentRepository,
     { provide: PAYMENT_REPOSITORY, useExisting: JsonPaymentRepository },
     {
