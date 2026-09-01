@@ -34,7 +34,18 @@ Node.js 22+ and npm are required.
    yarn
    ```
 
-3. **Start the development server**
+3. **Build server**
+
+   ```bash
+   npm run build
+
+   # or
+
+   yarn build
+
+   ```
+
+4. **Start the development server**
 
    ```bash
    npm run start:dev
@@ -44,21 +55,11 @@ Node.js 22+ and npm are required.
    yarn start:dev
    ```
 
-   4. **Build server**
-
-   ```bash
-   npm run build
-
-   # or
-
-   yarn build
-   ```
-
-4. **Run tests (optional)**
+5. **Run tests (optional)**
 
    `npm run build`, `npm test`, and `npm run test:e2e` (`yarn build`,`yarn test`, and `yarn test:e2e`).
 
-5. **Swagger**
+6. **Swagger document**
 
    `http://localhost:3000/api/docs`.
 
@@ -76,44 +77,44 @@ The repository abstraction keeps persistence replaceable. JSON storage is intent
 
 ## TESTING
 
-1. `Health check`
+1. **Health check**
 
    curl -i http://localhost:3000/health
 
-   expected 200 OK - {"status":"ok"}. If it is not returning 200, make sure the service is running (npm run start:dev or yarn start:dev)
+   _expected 200 OK - {"status":"ok"}. If it is not returning 200, make sure the service is running (npm run start:dev or yarn start:dev)_
 
-2. `Create a payment`
+2. **Create a payment**
 
    curl -i -X POST http://localhost:3000/api/v1/payments -H "Content-Type: application/json" -d '{"amount":100,"currency":"CAD","description":"Order #1"}'
 
-   expected 201 Created
+   _expected 201 Created_
 
-3. `Read one payment by ID`
+3. **Read one payment by ID**
 
    Replace the <payment_id> from the create response:
 
    curl -i http://localhost:3000/api/v1/payments/<payment_id>
 
-   expected 200 OK
+   _expected 200 OK_
 
-4. `Cancel a payment`
+4. **Cancel a payment**
 
    Replace the <payment_id> from the create response
 
    curl -i -X PATCH http://localhost:3000/api/v1/payments/<payment_id>/status -H "Content-Type: application/json" -d '{"status":"cancelled"}'
 
-   expected 409 Conflict - {"statusCode":409,"error":{"code":"INVALID_PAYMENT_TRANSITION","message":"Payment cannot transition from succeeded to cancelled"}}
+   _expected 409 Conflict - {"statusCode":409,"error":{"code":"INVALID_PAYMENT_TRANSITION","message":"Payment cannot transition from succeeded to cancelled"}}_
 
-5. `Read all payments`
+5. **Read all payments**
 
    curl -i http://localhost:3000/api/v1/payments
 
-   expected 200 OK and all payments from data/payments.json
+   _expected 200 OK and all payments from data/payments.json_
 
-6. `Test idempotency enforcement`
+6. **Test idempotency enforcement**
 
    Sent the same create request two time.
 
    curl -i -X POST http://localhost:3000/api/v1/payments -H "Content-Type: application/json" -d '{"amount": 100,"currency": "CAD","description": "Order #1","idempotencyKey": "order-123"}'
 
-   expected 201 Created - the system returns the same ID and payment details for both requests, preventing the creation of a duplicate payment
+   _expected 201 Created - the system returns the same ID and payment details for both requests, preventing the creation of a duplicate payment_
