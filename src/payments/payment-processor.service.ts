@@ -36,6 +36,11 @@ export class PaymentProcessorService {
       return;
     }
 
+    /*
+      Only a PENDING payment may start processing. PROCESSING, SUCCEEDED, and FAILED are all refused here:
+      this mirrors the state-machine rule (PENDING → PROCESSING) without duplicating it,
+      since the actual transition is delegated to domain.startProcessing next.
+    */
     if (initial.status !== PaymentStatus.PENDING) {
       this.observability.logEvent(
         id,
