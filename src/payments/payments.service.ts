@@ -3,6 +3,7 @@ import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { PaymentStatus } from './enums/payment-status.enum';
+import { InvalidPaymentTransitionException } from './exceptions/invalid-payment-transition.exception';
 import { PaymentNotFoundException } from './exceptions/payment-not-found.exception';
 import { Payment } from './models/payment.model';
 import { PaymentDomainService } from './payment-domain.service';
@@ -57,7 +58,8 @@ export class PaymentsService {
 
   async updateStatus(id: string, dto: UpdatePaymentStatusDto): Promise<Payment> {
     if (dto.status !== PaymentStatus.CANCELLED) {
-      throw new Error(`Unsupported status update: ${dto.status}`);
+      const payment = await this.findById(id);
+      throw new InvalidPaymentTransitionException(payment.status, dto.status);
     }
 
     const updated = await this.domain.cancel(id);

@@ -1,5 +1,6 @@
 export type PaymentEventType =
   | 'payment.created'
+  | 'payment.processing_skipped'
   | 'payment.processing_started'
   | 'payment.processing_completed'
   | 'payment.cancelled'

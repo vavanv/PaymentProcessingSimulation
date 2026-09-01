@@ -118,7 +118,24 @@ describe('PaymentsService', () => {
 
   it.each([PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED, PaymentStatus.FAILED])(
     'rejects unsupported status updates to %s', async (status) => {
-      await expect(service.updateStatus('pay_1', { status })).rejects.toThrow(`Unsupported status update: ${status}`);
+      repository.findById.mockResolvedValue({
+        id: 'pay_1',
+        amount: 1,
+        currency: Currency.CAD,
+        status: PaymentStatus.PENDING,
+        createdAt: '',
+        updatedAt: '',
+      });
+
+      await expect(service.updateStatus('pay_1', { status })).rejects.toMatchObject({
+        status: 409,
+        response: {
+          error: {
+            code: 'INVALID_PAYMENT_TRANSITION',
+            message: `Payment cannot transition from pending to ${status}`,
+          },
+        },
+      });
       expect(domain.cancel).not.toHaveBeenCalled();
     },
   );

@@ -33,6 +33,7 @@ describe('Payments API', () => {
     if (app) {
       await app.close();
     }
+    await rm(temporaryStorePath, { force: true });
   });
 
   it('supports health and validation', async () => {
@@ -78,6 +79,18 @@ describe('Payments API', () => {
       .post('/api/v1/payments')
       .send({ amount: 10, currency: 'CAD' })
       .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/payments/${response.body.id}/status`)
+      .send({ status: 'processing' })
+      .expect(409)
+      .expect({
+        statusCode: 409,
+        error: {
+          code: 'INVALID_PAYMENT_TRANSITION',
+          message: 'Payment cannot transition from pending to processing',
+        },
+      });
 
     await request(app.getHttpServer())
       .patch(`/api/v1/payments/${response.body.id}/status`)

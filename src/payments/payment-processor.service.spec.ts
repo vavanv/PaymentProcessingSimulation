@@ -121,10 +121,31 @@ describe('PaymentProcessorService', () => {
           'Cancelled before processing',
         );
       } else {
-        expect(observability.logEvent).not.toHaveBeenCalled();
+        expect(observability.logEvent).toHaveBeenCalledWith(
+          payment.id,
+          'payment.processing_skipped',
+          status,
+          `Processing skipped because payment is ${status}`,
+        );
       }
     },
   );
+
+  it('logs when processing is requested for a missing payment', async () => {
+    repository.findById.mockResolvedValue(null);
+    const service = new PaymentProcessorService(repository, domain, observability, gateway);
+
+    await service.process(payment.id);
+
+    expect(observability.logEvent).toHaveBeenCalledWith(
+      payment.id,
+      'payment.processing_skipped',
+      undefined,
+      'Processing skipped because payment was not found',
+    );
+    expect(domain.startProcessing).not.toHaveBeenCalled();
+    expect(gateway.process).not.toHaveBeenCalled();
+  });
 
   it('does not overwrite a cancellation before final update', async () => {
     repository.findById

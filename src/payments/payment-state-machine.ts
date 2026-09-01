@@ -1,4 +1,5 @@
 import { PaymentStatus } from './enums/payment-status.enum';
+import { InvalidPaymentTransitionException } from './exceptions/invalid-payment-transition.exception';
 
 export class PaymentStateMachine {
   /**
@@ -41,7 +42,7 @@ export class PaymentStateMachine {
    */
   static assertCanTransition(from: PaymentStatus, to: PaymentStatus): void {
     if (!this.canTransition(from, to)) {
-      throw new Error(`Invalid payment transition: ${from} -> ${to}`);
+      throw new InvalidPaymentTransitionException(from, to);
     }
   }
 }

@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
+import { PAYMENT_GATEWAY, PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentDomainService } from './payment-domain.service';
 import { PaymentObservabilityService } from './payment-observability.service';
 import { PaymentRepository } from './repositories/payment.repository';
-import { PAYMENT_GATEWAY, PaymentGateway } from './providers/payment-gateway.interface';
+import { PaymentGateway } from './providers/payment-gateway.interface';
 
 @Injectable()
 export class PaymentProcessorService {
@@ -20,6 +20,8 @@ export class PaymentProcessorService {
   async process(id: string): Promise<void> {
     const initial = await this.repository.findById(id);
     if (!initial) {
+      this.observability.logEvent(id, 'payment.processing_skipped', undefined, 'Processing skipped because payment was not found');
+      this.logger.warn(`Payment ${id} processing skipped because payment was not found`);
       return;
     }
 
@@ -30,6 +32,13 @@ export class PaymentProcessorService {
     }
 
     if (initial.status !== PaymentStatus.PENDING) {
+      this.observability.logEvent(
+        id,
+        'payment.processing_skipped',
+        initial.status,
+        `Processing skipped because payment is ${initial.status}`,
+      );
+      this.logger.log(`Payment ${id} processing skipped because payment is ${initial.status}`);
       return;
     }
 

@@ -1,1 +1,2 @@
 export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');
+export const PAYMENT_GATEWAY = Symbol('PAYMENT_GATEWAY');

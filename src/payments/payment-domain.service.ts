@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from './enums/payment-status.enum';
-import { InvalidPaymentTransitionException } from './exceptions/invalid-payment-transition.exception';
 import { PaymentNotFoundException } from './exceptions/payment-not-found.exception';
 import { Payment } from './models/payment.model';
 import { PaymentStateMachine } from './payment-state-machine';
@@ -59,7 +58,7 @@ export class PaymentDomainService {
       throw new PaymentNotFoundException(paymentId);
     }
 
-    this.assertCanTransition(payment.status, PaymentStatus.CANCELLED);
+    PaymentStateMachine.assertCanTransition(payment.status, PaymentStatus.CANCELLED);
 
     const updated: Payment = {
       ...payment,
@@ -89,7 +88,7 @@ export class PaymentDomainService {
       throw new PaymentNotFoundException(paymentId);
     }
 
-    this.assertCanTransition(payment.status, PaymentStatus.PROCESSING);
+    PaymentStateMachine.assertCanTransition(payment.status, PaymentStatus.PROCESSING);
 
     const updated: Payment = {
       ...payment,
@@ -119,7 +118,7 @@ export class PaymentDomainService {
     }
 
     const nextStatus = successful ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED;
-    this.assertCanTransition(payment.status, nextStatus);
+    PaymentStateMachine.assertCanTransition(payment.status, nextStatus);
 
     const updated: Payment = {
       ...payment,
@@ -133,9 +132,4 @@ export class PaymentDomainService {
     return updated;
   }
 
-  private assertCanTransition(from: PaymentStatus, to: PaymentStatus): void {
-    if (!PaymentStateMachine.canTransition(from, to)) {
-      throw new InvalidPaymentTransitionException(from, to);
-    }
-  }
 }

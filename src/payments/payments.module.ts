@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
+import { PAYMENT_GATEWAY, PAYMENT_REPOSITORY } from '../common/constants/injection-tokens';
 import { PaymentProcessorService } from './payment-processor.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
@@ -7,7 +7,6 @@ import { JsonPaymentRepository } from './repositories/json-payment.repository';
 import { PaymentObservabilityService } from './payment-observability.service';
 import { PaymentDomainService } from './payment-domain.service';
 import { SimulatedPaymentGateway } from './providers/simulated-payment-gateway';
-import { PAYMENT_GATEWAY } from './providers/payment-gateway.interface';
 
 @Module({
   controllers: [PaymentsController],

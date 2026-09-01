@@ -1,4 +1,5 @@
 import { PaymentStatus } from './enums/payment-status.enum';
+import { InvalidPaymentTransitionException } from './exceptions/invalid-payment-transition.exception';
 import { PaymentStateMachine } from './payment-state-machine';
 
 describe('PaymentStateMachine', () => {
@@ -20,9 +21,19 @@ describe('PaymentStateMachine', () => {
     [PaymentStatus.PENDING, PaymentStatus.SUCCEEDED],
   ])('rejects %s -> %s', (from, to) => {
     expect(PaymentStateMachine.canTransition(from, to)).toBe(false);
-    expect(() => PaymentStateMachine.assertCanTransition(from, to)).toThrow(
-      `Invalid payment transition: ${from} -> ${to}`,
-    );
+    try {
+      PaymentStateMachine.assertCanTransition(from, to);
+      fail('Expected an invalid payment transition exception');
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(InvalidPaymentTransitionException);
+      expect((error as InvalidPaymentTransitionException).getResponse()).toEqual({
+        statusCode: 409,
+        error: {
+          code: 'INVALID_PAYMENT_TRANSITION',
+          message: `Payment cannot transition from ${from} to ${to}`,
+        },
+      });
+    }
   });
 
   it.each([PaymentStatus.SUCCEEDED, PaymentStatus.FAILED, PaymentStatus.CANCELLED])(
